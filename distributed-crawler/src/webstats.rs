@@ -14,6 +14,40 @@ pub struct WebStats {
     pub total_word_count: u64,
 }
 
+// Everything the crawler needs to know about one URL
+#[derive(Debug)]
+pub struct PageResult {
+    // 200 response
+    pub exists: bool,
+    pub extension: String,
+    pub is_html: bool,
+    pub word_count: u64,
+    // links to crawl next
+    pub links: Vec<Url>,
+}
+
+impl PageResult {
+    pub fn missing(extension: String) -> Self {
+        Self {
+            exists: false,
+            extension,
+            is_html: false,
+            word_count: 0,
+            links: Vec::new(),
+        }
+    }
+
+    pub fn file(extension: String, is_html: bool) -> Self {
+        Self {
+            exists: true,
+            extension,
+            is_html,
+            word_count: 0,
+            links: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct BasicStats {
     pub links: Vec<Url>,

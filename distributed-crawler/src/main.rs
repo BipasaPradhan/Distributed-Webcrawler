@@ -1,3 +1,4 @@
+mod cluster;
 mod engine;
 pub mod webstats;
 

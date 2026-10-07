@@ -5,7 +5,7 @@ services:
     restart: always 
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes 
+    command: redis-server --appendonly yes --protected-mode no
     volumes:
       - redis_data:/data 
     healthcheck:

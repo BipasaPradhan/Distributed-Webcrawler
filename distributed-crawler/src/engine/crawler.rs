@@ -58,7 +58,7 @@ pub async fn crawl(client: &Client, start: &Url) -> WebStats {
         };
 
         let Some(joined) = joined else { break };
-        let page = joined.expect("crawl task panicked");
+        let page = joined.expect("crawler panicked");
         crawled += 1;
 
         stats.record(&page);

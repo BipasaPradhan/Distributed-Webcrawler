@@ -22,7 +22,7 @@ pub enum Command {
     /// Starts a crawler node that joins the cluster
     Node,
 
-    /// Submit one or more URLs -> each URL is its own crawl job
+    /// Submit one or more URLs (each URL is its own crawl job)
     Submit {
         #[arg(required = true)]
         urls: Vec<String>,
@@ -38,6 +38,6 @@ pub enum Command {
     /// Show a finished job's WebStats
     Stats { job: String },
 
-    /// 1 Node crawler
+    /// Local single node crawler
     Local { url: String },
 }

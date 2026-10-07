@@ -1,17 +1,11 @@
 use std::collections::HashMap;
+use std::fmt;
 use url::Url;
 
 #[derive(Debug)]
-pub struct WebStats {
-    // the total number of (unique) files found
-    pub num_files: usize,
-    // the total number of (unique) file extensions (.jpg is different from .jpeg)
-    pub num_exts: usize,
-    // the total number of files for each extension
-    pub ext_counts: HashMap<String, usize>,
-    // the total number of words in all HTML files combined, excluding
-    // all HTML tags, attributes, and HTML comments
-    pub total_word_count: u64,
+pub struct ParsedPage {
+    pub links: Vec<Url>,
+    pub word_count: u64,
 }
 
 // Everything the crawler needs to know about one URL
@@ -48,8 +42,46 @@ impl PageResult {
     }
 }
 
-#[derive(Debug)]
-pub struct BasicStats {
-    pub links: Vec<Url>,
-    pub word_count: u64,
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct WebStats {
+    // the total number of (unique) files found
+    pub num_files: usize,
+
+    // the total number of (unique) file extensions (.jpg is different from .jpeg)
+    pub num_exts: usize,
+
+    // the total number of files for each extension
+    pub ext_counts: HashMap<String, usize>,
+
+    // the total number of words in all HTML files combined, excluding
+    // all HTML tags, attributes, and HTML comments
+    pub total_word_count: u64,
+}
+
+impl WebStats {
+    pub fn record(&mut self, page: &PageResult) {
+        if !page.exists {
+            return;
+        }
+
+        self.num_files += 1;
+        *self.ext_counts.entry(page.extension.clone()).or_insert(0) += 1;
+        self.num_exts = self.ext_counts.len();
+        self.total_word_count += page.word_count;
+    }
+}
+
+impl fmt::Display for WebStats {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(
+            f,
+            "files: {} | extensions: {} | words: {}",
+            self.num_files, self.num_exts, self.total_word_count
+        )?;
+        // sort by num then alphabetically
+        let mut exts: Vec<_> = self.ext_counts.iter().collect();
+        exts.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+        let line: Vec<String> = exts.iter().map(|(e, n)| format!("{e} {n}")).collect();
+        write!(f, "{}", line.join(" | "))
+    }
 }

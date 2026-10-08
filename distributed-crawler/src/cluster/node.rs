@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::time::Duration;
 
@@ -7,6 +6,7 @@ use redis::{AsyncCommands, RedisResult};
 use reqwest::Client;
 use tokio::task::JoinSet;
 
+use crate::cluster::jobs::redis_time_ms;
 use crate::cluster::keys;
 use crate::engine::fetcher::{build_client, fetch_page};
 
@@ -35,8 +35,6 @@ pub async fn run_node(connection: MultiplexedConnection) -> Result<(), Box<dyn E
 }
 
 async fn worker(mut connection: MultiplexedConnection, http_client: Client) {
-    // job id -> base path (cache)
-    let mut bases: HashMap<String, String> = HashMap::new();
     loop {
         let item: Option<String> = match connection.rpop(keys::QUEUE, None).await {
             Ok(item) => item,
@@ -59,7 +57,7 @@ async fn worker(mut connection: MultiplexedConnection, http_client: Client) {
             continue;
         };
 
-        if let Err(e) = process(&mut connection, &http_client, &mut bases, job, url).await {
+        if let Err(e) = process(&mut connection, &http_client, job, url).await {
             eprintln!("redis error while processing {url}: {e}");
         }
     }
@@ -69,7 +67,6 @@ async fn worker(mut connection: MultiplexedConnection, http_client: Client) {
 async fn process(
     connection: &mut MultiplexedConnection,
     http_client: &Client,
-    bases: &mut HashMap<String, String>,
     job: &str,
     url: &str,
 ) -> RedisResult<()> {
@@ -77,13 +74,9 @@ async fn process(
     let _: i64 = connection.hincr(&stats_key, keys::IN_FLIGHT, 1).await?; // increases in_flight counter 
 
     // look up base
-    let base = match bases.get(job) {
-        Some(base) => base.clone(),
-        None => {
-            let base: String = connection.hget(keys::job(job), keys::URL).await?;
-            bases.insert(job.to_string(), base.clone());
-            base
-        }
+    let Some(base): Option<String> = connection.hget(keys::job(job), keys::URL).await? else {
+        eprintln!("Job {job} no longer exists. Skipping {url}");
+        return Ok(());
     };
 
     let page = match Url::parse(url) {
@@ -108,10 +101,7 @@ async fn process(
     let (remaining,): (i64,) = pipe.query_async(connection).await?;
 
     if remaining == 0 {
-        let _: () = connection
-            .hset(keys::job(job), keys::STATE, keys::DONE)
-            .await?;
-        eprintln!("job {job} done");
+        finish_job(connection, job).await?;
     }
     Ok(())
 }
@@ -158,5 +148,25 @@ async fn schedule_links(
     }
 
     let _: () = pipe.query_async(connection).await?;
+    Ok(())
+}
+
+async fn finish_job(connection: &mut MultiplexedConnection, job: &str) -> RedisResult<()> {
+    let now = redis_time_ms(connection).await?;
+    let job_key = keys::job(job);
+    let _: () = connection
+        .hset_multiple(
+            &job_key,
+            &[
+                (keys::STATE, keys::DONE.to_string()),
+                (keys::FINISHED_AT, now.to_string()),
+            ],
+        )
+        .await?;
+
+    let submitted: Option<u64> = connection.hget(&job_key, keys::SUBMITTED_AT).await?;
+    let took = Duration::from_millis(now.saturating_sub(submitted.unwrap_or(now)));
+
+    eprintln!("Job {job} done in {took:.2?}");
     Ok(())
 }

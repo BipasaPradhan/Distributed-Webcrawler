@@ -7,6 +7,8 @@ pub const URL: &str = "url"; // start & base url
 pub const STATE: &str = "state";
 pub const RUNNING: &str = "running";
 pub const DONE: &str = "done";
+pub const SUBMITTED_AT: &str = "submitted_at";
+pub const FINISHED_AT: &str = "finished_at";
 
 /// Fields of job:<id>:stats
 pub const FILES: &str = "files";

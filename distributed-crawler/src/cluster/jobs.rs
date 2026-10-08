@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use redis::aio::MultiplexedConnection;
 use redis::{AsyncCommands, RedisResult};
@@ -26,11 +27,17 @@ pub async fn submit(
         return Ok((existing_url_job_map, false));
     }
 
+    let time_now = redis_time_ms(connection).await?.to_string();
+
     let _: () = redis::pipe()
         .atomic()
         .hset_multiple(
             keys::job(&id),
-            &[(keys::URL, url.as_str()), (keys::STATE, keys::RUNNING)],
+            &[
+                (keys::URL, url.as_str()),
+                (keys::STATE, keys::RUNNING),
+                (keys::SUBMITTED_AT, time_now.as_str()),
+            ],
         )
         .ignore()
         .sadd(keys::seen(&id), &url)
@@ -58,12 +65,23 @@ pub async fn status(
     let counters: HashMap<String, i64> = connection.hgetall(keys::stats(id)).await?;
     let get = |field: &str| counters.get(field).copied().unwrap_or(0);
 
+    let done = info.get(keys::STATE).map(String::as_str) == Some(keys::DONE);
+    let ms = |field: &str| info.get(field).and_then(|v| v.parse::<u64>().ok());
+
+    let submitted = ms(keys::SUBMITTED_AT).unwrap_or(0);
+
+    let end = match ms(keys::FINISHED_AT) {
+        Some(finished) if done => finished,
+        _ => redis_time_ms(connection).await?,
+    };
+
     Ok(Some(JobStatus {
         url,
         done: info.get(keys::STATE).map(String::as_str) == Some(keys::DONE),
         crawled: get(keys::CRAWLED),
         in_flight: get(keys::IN_FLIGHT),
         pending: get(keys::PENDING),
+        time_elapsed: Duration::from_millis(end.saturating_sub(submitted)),
     }))
 }
 
@@ -77,4 +95,9 @@ pub async fn web_stats(connection: &mut MultiplexedConnection, id: &str) -> Redi
         ext_counts,
         total_word_count: counters.get(keys::WORDS).copied().unwrap_or(0),
     })
+}
+
+pub async fn redis_time_ms(con: &mut MultiplexedConnection) -> RedisResult<u64> {
+    let (secs, micros): (u64, u64) = redis::cmd("TIME").query_async(con).await?;
+    Ok(secs * 1000 + micros / 1000)
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::time::Duration;
 use url::Url;
 
 use crate::cluster::keys;
@@ -95,6 +96,7 @@ pub struct JobStatus {
     pub crawled: i64,
     pub in_flight: i64,
     pub pending: i64,
+    pub time_elapsed: Duration,
 }
 
 impl JobStatus {

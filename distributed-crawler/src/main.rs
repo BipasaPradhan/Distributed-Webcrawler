@@ -81,6 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 return Ok(());
             }
             println!("{}", web_stats(&mut connection, &job).await?);
+            println!("Took {:.2?}", status.time_elapsed);
         }
 
         Command::Local { url } => {

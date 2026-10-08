@@ -108,7 +108,7 @@ impl JobStatus {
 
     pub fn line(&self) -> String {
         format!(
-            "crawled {:<4}| frontier {:<4}| in flight {:<3} {}",
+            "crawled {} | frontier {} | in flight {} {}",
             self.crawled,
             self.frontier(),
             self.in_flight,

@@ -21,7 +21,7 @@ const WAIT_TIME: Duration = Duration::from_millis(100);
 
 pub async fn run_node(connection: MultiplexedConnection) -> Result<(), Box<dyn Error>> {
     let http_client = build_client()?;
-    eprintln!("node started with: {TASKS} workers");
+    eprintln!("Node started with {TASKS} workers");
 
     let mut workers = JoinSet::new();
     for _ in 0..TASKS {

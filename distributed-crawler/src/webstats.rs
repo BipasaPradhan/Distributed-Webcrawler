@@ -83,9 +83,10 @@ impl fmt::Display for WebStats {
         )?;
         // sort by num then alphabetically
         let mut exts: Vec<_> = self.ext_counts.iter().collect();
+
         exts.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         let line: Vec<String> = exts.iter().map(|(e, n)| format!("{e} {n}")).collect();
-        write!(f, "{}", line.join(" | "))
+        write!(f, "Extensions: {}", line.join(" | "))
     }
 }
 
@@ -107,7 +108,7 @@ impl JobStatus {
 
     pub fn line(&self) -> String {
         format!(
-            "crawled {:<6}| frontier {:<6}| in flight {:<3} {}",
+            "crawled {:<4}| frontier {:<4}| in flight {:<3} {}",
             self.crawled,
             self.frontier(),
             self.in_flight,

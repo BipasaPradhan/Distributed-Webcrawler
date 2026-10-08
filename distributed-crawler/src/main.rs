@@ -94,7 +94,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let stats = crawl(&client, &start).await;
 
             println!("{stats}");
-            println!("took {:.2?}", started.elapsed());
+            println!("Took {:.2?}", started.elapsed());
         }
     }
     Ok(())

@@ -73,5 +73,5 @@ pub async fn crawl(client: &Client, start: &Url) -> WebStats {
 }
 
 fn print_progress(crawled: usize, frontier: usize, in_flight: usize, state: &str) {
-    eprintln!("crawled: {crawled} | frontier: {frontier} | in flight: {in_flight} {state}");
+    eprintln!("crawled: {crawled:<4}| frontier: {frontier:<4} | in flight: {in_flight:<3}{state}");
 }

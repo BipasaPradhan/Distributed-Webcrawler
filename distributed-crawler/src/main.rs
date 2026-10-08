@@ -5,8 +5,11 @@ pub mod webstats;
 use std::error::Error;
 use std::time::Instant;
 
+use std::time::Duration;
+use tokio::time::sleep;
+
 use crate::cluster::cli::{Cli, Command};
-use crate::cluster::jobs::submit;
+use crate::cluster::jobs::{status, submit};
 use crate::cluster::node::run_node;
 use crate::engine::{crawler::crawl, fetcher::build_client};
 
@@ -39,13 +42,33 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let note = if url_job_hash {
                     ""
                 } else {
-                    "  (already submitted)"
+                    "(already submitted)"
                 };
-                println!("job {id:<4} {url}{note}");
+                println!("job {id:<4} {url:<3}{note}");
             }
         }
 
-        Command::Status { follow, job } => todo!("step 7: status {job} (follow: {follow})"),
+        Command::Status { follow, job } => {
+            let mut connection = connect(&cli.redis).await?;
+            let mut last_line = String::new();
+            loop {
+                let Some(status) = status(&mut connection, &job).await? else {
+                    return Err(format!("No such specified job: {job}").into());
+                };
+
+                let line = status.line();
+
+                if !follow || line != last_line {
+                    println!("{line}");
+                }
+
+                if !follow || status.done {
+                    break;
+                }
+                last_line = line;
+                sleep(Duration::from_secs(1)).await;
+            }
+        }
 
         Command::Stats { job } => todo!("step 8: stats {job}"),
 

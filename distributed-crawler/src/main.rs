@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use crate::cluster::cli::{Cli, Command};
 use crate::cluster::jobs::submit;
+use crate::cluster::node::run_node;
 use crate::engine::{crawler::crawl, fetcher::build_client};
 
 use clap::Parser;
@@ -18,7 +19,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Node => todo!("step 4"),
+        Command::Node => {
+            let connection = connect(&cli.redis).await?;
+            run_node(connection).await?
+        }
 
         Command::Submit { urls } => {
             let mut connection = connect(&cli.redis).await?;
@@ -37,7 +41,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 } else {
                     "  (already submitted)"
                 };
-                println!("job {id:<5} {url}{note}");
+                println!("job {id:<4} {url}{note}");
             }
         }
 

@@ -5,7 +5,7 @@ use redis::{AsyncCommands, RedisResult};
 use url::Url;
 
 use crate::cluster::keys;
-use crate::webstats::WebStats;
+use crate::webstats::{JobStatus, WebStats};
 
 pub async fn submit(
     connection: &mut MultiplexedConnection,
@@ -43,4 +43,26 @@ pub async fn submit(
         .await?;
 
     Ok((id, true))
+}
+
+pub async fn status(
+    connection: &mut MultiplexedConnection,
+    id: &str,
+) -> RedisResult<Option<JobStatus>> {
+    let info: HashMap<String, String> = connection.hgetall(keys::job(id)).await?;
+
+    let Some(url) = info.get(keys::URL).cloned() else {
+        return Ok(None);
+    };
+
+    let counters: HashMap<String, i64> = connection.hgetall(keys::stats(id)).await?;
+    let get = |field: &str| counters.get(field).copied().unwrap_or(0);
+
+    Ok(Some(JobStatus {
+        url,
+        done: info.get(keys::STATE).map(String::as_str) == Some(keys::DONE),
+        crawled: get(keys::CRAWLED),
+        in_flight: get(keys::IN_FLIGHT),
+        pending: get(keys::PENDING),
+    }))
 }

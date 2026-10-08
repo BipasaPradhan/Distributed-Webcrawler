@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fmt;
 use url::Url;
 
+use crate::cluster::keys;
+
 #[derive(Debug)]
 pub struct ParsedPage {
     pub links: Vec<Url>,
@@ -83,5 +85,31 @@ impl fmt::Display for WebStats {
         exts.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         let line: Vec<String> = exts.iter().map(|(e, n)| format!("{e} {n}")).collect();
         write!(f, "{}", line.join(" | "))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct JobStatus {
+    pub url: String,
+    pub done: bool,
+    pub crawled: i64,
+    pub in_flight: i64,
+    pub pending: i64,
+}
+
+impl JobStatus {
+    // Get how many urls are in the queue
+    pub fn frontier(&self) -> i64 {
+        (self.pending - self.in_flight).max(0)
+    }
+
+    pub fn line(&self) -> String {
+        format!(
+            "crawled {:<6}| frontier {:<6}| in flight {:<3} {}",
+            self.crawled,
+            self.frontier(),
+            self.in_flight,
+            if self.done { keys::DONE } else { keys::RUNNING }
+        )
     }
 }

@@ -9,7 +9,7 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 use crate::cluster::cli::{Cli, Command};
-use crate::cluster::jobs::{status, submit};
+use crate::cluster::jobs::{status, submit, web_stats};
 use crate::cluster::node::run_node;
 use crate::engine::{crawler::crawl, fetcher::build_client};
 
@@ -70,7 +70,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         }
 
-        Command::Stats { job } => todo!("step 8: stats {job}"),
+        Command::Stats { job } => {
+            let mut connection = connect(&cli.redis).await?;
+            let Some(status) = status(&mut connection, &job).await? else {
+                return Err(format!("No such specified job: {job}").into());
+            };
+            if !status.done {
+                println!("Job {job} is not done yet! The current status is:");
+                println!("{}", status.line());
+                return Ok(());
+            }
+            println!("{}", web_stats(&mut connection, &job).await?);
+        }
 
         Command::Local { url } => {
             let start = Url::parse(&url)?;

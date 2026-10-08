@@ -66,3 +66,15 @@ pub async fn status(
         pending: get(keys::PENDING),
     }))
 }
+
+pub async fn web_stats(connection: &mut MultiplexedConnection, id: &str) -> RedisResult<WebStats> {
+    let counters: HashMap<String, u64> = connection.hgetall(keys::stats(id)).await?;
+    let ext_counts: HashMap<String, usize> = connection.hgetall(keys::exts(id)).await?;
+
+    Ok(WebStats {
+        num_files: counters.get(keys::FILES).copied().unwrap_or(0) as usize,
+        num_exts: ext_counts.len(),
+        ext_counts,
+        total_word_count: counters.get(keys::WORDS).copied().unwrap_or(0),
+    })
+}
